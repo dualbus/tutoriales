@@ -1,0 +1,24 @@
+Establecer un proxy SOCKS4/5 con OpenSSH es pan comido. Basta con
+tener un usuario válido en una máquina remota con OpenSSH instalado,
+para hacer algo como:
+
+  ssh -fND 8080 usuario@maquina.tld
+
+Que hace las siguientes cosas:
+
+-f  Se despega de la terminal y se va al «background», es decir,
+    como un servicio.
+
+-N  Desconecta la entrada de datos de la terminal, porque no queremos
+    interactividad, solo que acepte conexiones como proxy.
+
+-D 8080   Ponemos a escuchar en el puerto 8080 de nuestra máquina
+    local a un servidor SOCKS4/5, y al configurar nuestro navegador
+    con ese proxy, ahora nuestras conexiones saldrán por el servidor
+    en «maquina.tld», en vez de nuestra red, además de que un sniffer
+    en nuestra red no tendrá idea de qué estamos haciendo, porque
+    solo verá tráfico SSH por el puerto 22 entre nuestra máquina y la
+    «maquina.tld»
+
+Para «proxificar» cualquier comando, soporte o no proxies SOCKS,
+podemos usar el comando proxychains.

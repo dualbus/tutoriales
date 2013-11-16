@@ -1,0 +1,177 @@
+                                  ssh_config
+-------------------------------------------------------------------------------
+
+
+OpenSSH nos permite crear «perfiles» para conexiones, con lo que
+podemos ahorrarnos escribir largos comandos para especificar opciones
+que se usan rutinariamente.
+
+Por ejemplo, supongamos que nos conectamos siempre a la máquina
+«maquina.com», con el usuario «elpepe», sin embargo, en nuestra
+máquina tenemos al usuario «juanito». Entonces, el comando ssh ya no
+es un simple «ssh maquina.com», sino que debemos especificar también
+el usuario: «ssh -l elpepe maquina.com» o «ssh elpepe@maquina.com».
+
+Ahora, supongamos que también queremos habilitar compresión, porque
+desafortunadamente nuestro enlace es muy lento: 
+
+  ssh -C -o CompressionLevel=6 elpepe@maquina.com
+
+Algo molesto de escribir frecuentemente, y difícil de recordar.
+Claro, podemos crear un alias en el shell, y tener:
+
+
+  alias sshm='ssh -C -o CompressionLevel=6 elpepe@maquina.com'
+
+Sin embargo, tener algo así para más de una conexión se vuelve un
+tanto latoso de manejar, además de difícil de actualizar.
+
+
+-> *Entra ssh_config en acción*
+
+
+Con ssh_config podemos escribir esas opciones en un archivo, y ssh
+sabrá qué opciones habilitar para la conexión específica:
+
+maquina.com.config
+-------------------------------------------------------------------------------
+Host maquina.com
+  Compression yes
+  CompressionLevel 6
+  User elpepe
+-------------------------------------------------------------------------------
+
+Y ahora ejecutamos:
+
+  ssh -F maquina.com.config maquina.com
+
+Y automáticamente aplica la configuración para maquina.com que
+indicas en el archivo.
+
+
+Ahora, puede que llamar a ssh con -F también sea problemático, por lo
+que podemos utilizar el archivo estándar de configuración, que está
+en «~/.ssh/config». Ahí podemos ir poniendo nuestras configuraciones,
+para ahorrarnos algo de tiempo al escribir los comandos.
+
+
+
+La estructura básica del archivo es la siguiente:
+
+
+Host <patrón>
+<Directiva1>
+<Directiva2>
+...
+<DirectivaN>
+
+
+El patrón que se pone en «Host» se compara contra el nombre de la
+máquina que se le pasa a ssh, pero nada me detiene de que sea un
+nombre falso. Por ejemplo, puedo tener lo siguiente:
+
+config
+-------------------------------------------------------------------------------
+Host msn.com
+  HostName dualbus.me
+  User dualbus
+-------------------------------------------------------------------------------
+
+  $ ssh -F config msn.com 'hostname'
+  dualbus.me
+
+
+Ahora, ¿a qué me refiero con patrón?
+
+Bueno, supongamos que tienes el dominio «empresa.com», y en ese
+dominio tienes las siguientes máquinas:
+
+- thor.empresa.com
+- loki.empresa.com
+- odin.empresa.com
+
+Ahora, supongamos que en «thor» y en «loki» tenemos al usuario
+«administrador» bajo nuestro control, y en «odin» tenemos al usuario
+«ti».
+
+Con esta información podemos crear la siguiente configuración:
+
+-------------------------------------------------------------------------------
+Host thor.empresa.com
+  User administrador
+Host loki.empresa.com
+  User administrador
+Host odin.empresa.com
+  User ti
+-------------------------------------------------------------------------------
+
+
+Sin embargo, para conectarnos a estas máquinas no usamos nuestro
+clásico ~/.ssh/id_rsa, sino una clave privada que nos dió el
+administrador, y está en ~/.ssh/claves/empresa.com
+
+Nuestro archivo crece:
+
+-------------------------------------------------------------------------------
+Host thor.empresa.com
+  User administrador
+  IdentityFile ~/.ssh/claves/empresa.com
+Host loki.empresa.com
+  User administrador
+  IdentityFile ~/.ssh/claves/empresa.com
+Host odin.empresa.com
+  User ti
+  IdentityFile ~/.ssh/claves/empresa.com
+-------------------------------------------------------------------------------
+
+Ahora, podríamos haber puesto la directiva IdentityFile fuera de los
+bloques Host, para que aplique a nivel global, sin embargo, eso
+afectaría a nuestras otras conexiones que están fuera de empresa.com.
+
+Y aquí es donde entran los patrones:
+
+
+-------------------------------------------------------------------------------
+Host thor.empresa.com
+  User administrador
+Host loki.empresa.com
+  User administrador
+Host odin.empresa.com
+  User ti
+
+Host *.empresa.com
+  IdentityFile ~/.ssh/claves/empresa.com
+-------------------------------------------------------------------------------
+
+:)
+
+
+Nota, que el orden de las entradas afecta la aplicación. Yo procuro
+poner primero las directivas específicas, y después las generales.
+
+
+Para un caso tan sencillo como el de arriba puede que no sea tan
+impresionante, pero en mi trabajo manejo varias máquinas, y con mi
+memoria, no me acordaría de los detalles de cada una!
+
+  $ grep Host ~/srv/ssh -c
+  68
+
+Y con esto yo ya solo hago:
+
+  $ srv admin-ragnarok
+
+Donde srv es una función que llama: ssh -F ~/srv/ssh "$@"
+
+
+En este caso manejo varias máquinas en Amazon EC2, y recordar los
+Public DNS sería una locura, por lo que utilizo esa configuración
+para darle pseudónimos fáciles de recordar, y que aparte tengan
+sentido para mí.
+
+Por ejemplo, utilizo la convención: {int,ext}-{pre,prod,dev}-<nombre>
+
+Según si es un servidor de intranet, o extranet; de pre-producción,
+producción o desarrollo, y con un nombre fácil de recordar y
+escribir. Pero esto es solo un ejemplo, las posibilidades son
+enormes...

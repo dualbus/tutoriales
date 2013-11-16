@@ -1,0 +1,60 @@
+                              ssh-agent
+-------------------------------------------------------------------------------
+
+Usar llaves en vez de contraseñas nos ayuda en el tema de seguridad,
+ya que evitamos los ataques de fuerza bruta en el lado del servidor,
+y otras cosas.
+
+Sin embargo, para evitar escribir la frase que protege a la llave
+privada, muchas personas guardan su llave privada sin encriptar. Esto
+es *INSEGURO*! Si alguien tiene acceso a ese archivo, lo podrá copiar
+y usar a su voluntad para conectarse a las mismas máquinas que
+ustedes.
+
+Entonces, ¿cómo le hago para evitar escribir la frase una y otra vez?
+¡es igual de latoso que las contraseñas!
+
+-> ssh-agent entra en acción.
+
+ssh-agent es un programa que «guarda» la llave privada desencriptada
+en memoria (o algo así), así que solo escribimos la contraseña una
+vez, y las siguientes ocasiones no nos la pregunta.
+
+Incluso, ssh-agent nos permite hacer algo que se llama Agent
+Forwarding, que se ve un tanto así, en un ejemplo:
+
+
+[Mi máquina de trabajo] -> [Máquina con el repositorio] -> [Máquina de producción]
+
+
+¿Cómo le hacemos para iniciar sesión en la máquina de producción,
+desde la máquina con el repositorio de código, sin copiar nuestra
+llave privada a la máquina con el repositorio, y sin usar simples
+contraseñas?
+
+
+Con el agente. Al hacer «forward» del agente, la máquina con el
+repositorio puede comunicarse con el agente en la máquina de trabajo
+para que interceda al hacer sesión con la máquina de producción.
+
+
+¿Cómo utilizo el ssh-agent?
+
+La configuración depende del entorno de escritorio que usen, en mi
+caso, yo tengo:
+
+  if [ -z "$SSH_AUTH_SOCK" ]; then
+      eval "$(keychain --eval --agents ssh -Q --quiet id_rsa)"
+  fi
+
+En mi ~/.profile, uso el programa keychain que lanza al ssh-agent y
+también a un agente para GPG.
+
+Y para agregar llaves al agente, basta con solo hacer:
+
+  ssh-add ruta/al/archivo
+
+A lo que les pedirá la contraseña que protege a la llave, y si todo
+va bien, la veremos listada con:
+
+  ssh-add -L

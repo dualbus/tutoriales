@@ -1,0 +1,31 @@
+OpenSSH nos permite crear túneles encriptados entre un cliente y un
+servidor, a lo que OpenSSH llama «Forwarding»
+
+Hay dos tipos de túneles:
+
+- RemoteForward
+- LocalForward
+
+Gráficamente se ven así:
+
+RemoteForward:
+
+
+                 ___ Aquí solo está escuchando, no hay
+                |    un servicio trabajando...
+                v
+ {Firefox} -> [Servidor:80] ====> [Cliente:8080] -> {Apache2} 
+
+                                          ^
+                        Aquí se hace el   |
+                        verdadero trabajo
+
+
+LocalForward:
+
+  {psql} -> [localhost:5432] ====> [dualbus.me:5432] {PostgreSQL}
+
+
+Incluso se puede hacer que la conexión sea a una máquina, pero visto
+desde la perspectiva del cliente (LocalForward) o servidor
+(RemoteForward)..
