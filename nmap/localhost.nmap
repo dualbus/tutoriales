@@ -1,0 +1,80 @@
+# Nmap 6.00 scan initiated Sat Oct 26 07:49:38 2013 as: nmap --privileged -A -oN localhost.nmap localhost
+Nmap scan report for localhost (127.0.0.1)
+Host is up (0.000051s latency).
+Other addresses for localhost (not scanned): 127.0.0.1
+Not shown: 987 closed ports
+PORT      STATE SERVICE     VERSION
+21/tcp    open  ftp         ProFTPD 1.3.4a
+22/tcp    open  ssh         OpenSSH 6.0p1 Debian 4 (protocol 2.0)
+| ssh-hostkey: 1024 2c:a8:b6:54:90:11:d1:db:aa:16:95:bd:7a:cf:8b:3e (DSA)
+|_2048 15:78:f7:88:ba:d9:23:c5:dc:6e:69:cc:ab:7b:7b:61 (RSA)
+25/tcp    open  smtp        Exim smtpd 4.80
+| smtp-commands: claret.dualbus.me Hello localhost [127.0.0.1], SIZE 52428800, 8BITMIME, PIPELINING, HELP, 
+|_ Commands supported: AUTH HELO EHLO MAIL RCPT DATA NOOP QUIT RSET HELP 
+53/tcp    open  domain      dnsmasq 2.62
+| dns-nsid: 
+|_  bind.version: dnsmasq-2.62
+80/tcp    open  http        nginx 1.2.1
+|_http-methods: No Allow or Public header in OPTIONS response (status code 405)
+|_http-title: Site doesn't have a title (text/html).
+111/tcp   open  rpcbind
+| rpcinfo: 
+|   program version   port/proto  service
+|   100000  2,3,4        111/tcp  rpcbind
+|   100000  2,3,4        111/udp  rpcbind
+|   100024  1          49862/tcp  status
+|_  100024  1          50091/udp  status
+139/tcp   open  netbios-ssn Samba smbd 3.X (workgroup: WORKGROUP)
+445/tcp   open  netbios-ssn Samba smbd 3.X (workgroup: WORKGROUP)
+631/tcp   open  ipp         CUPS 1.5
+| http-methods: Potentially risky methods: PUT
+|_See http://nmap.org/nsedoc/scripts/http-methods.html
+| http-robots.txt: 1 disallowed entry 
+|_/
+5432/tcp  open  postgresql  PostgreSQL DB
+8080/tcp  open  socks5      (No authentication; connection failed)
+| socks-auth-info: 
+|_  No authentication
+10003/tcp open  ssh         OpenSSH 6.0p1 Debian 4 (protocol 2.0)
+| ssh-hostkey: 1024 17:b7:54:9e:c8:52:53:bc:8d:21:d7:62:27:ca:10:6e (DSA)
+|_2048 35:af:7f:13:37:25:34:b7:9a:1a:98:0d:f2:69:52:27 (RSA)
+10004/tcp open  emcrmirccd?
+1 service unrecognized despite returning data. If you know the service/version, please submit the following fingerprint at http://www.insecure.org/cgi-bin/servicefp-submit.cgi :
+SF-Port5432-TCP:V=6.00%I=7%D=10/26%Time=526BD689%P=x86_64-unknown-linux-gn
+SF:u%r(SMBProgNeg,85,"E\0\0\0\x84SFATAL\0C0A000\0Munsupported\x20frontend\
+SF:x20protocol\x2065363\.19778:\x20server\x20supports\x201\.0\x20to\x203\.
+SF:0\0Fpostmaster\.c\0L1706\0RProcessStartupPacket\0\0");
+No exact OS matches for host (If you know what OS is running on it, see http://nmap.org/submit/ ).
+TCP/IP fingerprint:
+OS:SCAN(V=6.00%E=4%D=10/26%OT=21%CT=1%CU=30371%PV=N%DS=0%DC=L%G=Y%TM=526BD7
+OS:55%P=x86_64-unknown-linux-gnu)SEQ(SP=FE%GCD=1%ISR=10C%TI=Z%CI=Z%II=I%TS=
+OS:8)OPS(O1=M400CST11NW6%O2=M400CST11NW6%O3=M400CNNT11NW6%O4=M400CST11NW6%O
+OS:5=M400CST11NW6%O6=M400CST11)WIN(W1=8000%W2=8000%W3=8000%W4=8000%W5=8000%
+OS:W6=8000)ECN(R=Y%DF=Y%T=41%W=8018%O=M400CNNSNW6%CC=Y%Q=)T1(R=Y%DF=Y%T=41%
+OS:S=O%A=S+%F=AS%RD=0%Q=)T2(R=N)T3(R=N)T4(R=Y%DF=Y%T=41%W=0%S=A%A=Z%F=R%O=%
+OS:RD=0%Q=)T5(R=Y%DF=Y%T=41%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)T6(R=Y%DF=Y%T=41%W
+OS:=0%S=A%A=Z%F=R%O=%RD=0%Q=)T7(R=Y%DF=Y%T=41%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)
+OS:U1(R=Y%DF=N%T=41%IPL=164%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)IE(R=Y%D
+OS:FI=N%T=41%CD=S)
+
+Network Distance: 0 hops
+Service Info: Host: claret.dualbus.me; OSs: Unix, Linux; CPE: cpe:/o:linux:kernel
+
+Host script results:
+| smb-security-mode: 
+|   Account that was used for smb scripts: guest
+|   User-level authentication
+|   SMB Security: Challenge/response passwords supported
+|_  Message signing disabled (dangerous, but default)
+|_smbv2-enabled: Server doesn't support SMBv2 protocol
+|_nbstat: NetBIOS name: CLARET, NetBIOS user: <unknown>, NetBIOS MAC: <unknown>
+| smb-os-discovery: 
+|   OS: Unix (Samba 3.6.6)
+|   Computer name: claret
+|   Domain name: dualbus.me
+|   FQDN: claret.dualbus.me
+|   NetBIOS computer name: 
+|_  System time: 2013-10-26 07:51:57 UTC-7
+
+OS and Service detection performed. Please report any incorrect results at http://nmap.org/submit/ .
+# Nmap done at Sat Oct 26 07:53:09 2013 -- 1 IP address (1 host up) scanned in 211.40 seconds

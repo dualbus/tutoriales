@@ -1,0 +1,597 @@
+[0x00:Introducción]
+
+
+¿qué es nmap?
+
+Las principales fortalezas de nmap radican en el *descubrimiento*.
+¿Descubrimiento de qué? de servicios, configuraciones de cortafuegos,
+máquinas, servicios vulnerables, etc.
+
+
+¿qué cosas puedo hacer con nmap?
+
+
+i) saber si una computadora tiene un puerto abierto:
+
+  $ nmap -p 80 dualbus.me
+
+  Starting Nmap 6.00 ( http://nmap.org ) at 2013-10-24 21:40 PDT
+  Nmap scan report for dualbus.me (198.199.101.227)
+  Host is up (0.034s latency).
+  PORT   STATE SERVICE
+  80/tcp open  http
+
+  Nmap done: 1 IP address (1 host up) scanned in 0.44 seconds
+
+
+  ,__________________________________________________________________,
+  |notas para n00bs: no agregar http://, https:// o algún otro adorno|
+  |a la máquina que quieren escanear. nmap toma «nombres» de dominio,|
+  |no «URLs»                                                         |
+  |__________________________________________________________________|
+
+
+ii) descubrir qué máquinas están en línea en mi red local (LAN):
+
+  Para esto, primero investigamos la dirección base y máscara de
+  nuestra red, algo como:
+    $ ifconfig eth0 | grep 'inet addr' # YMMV
+              inet addr:192.168.1.75  Bcast:192.168.1.255 Mask:255.255.255.0
+    $ iprange 192.168.1.75 255.255.255.0 # ver nota
+    192.168.1.0/24
+    $ nmap -sn 192.168.1.0/24
+
+    Starting Nmap 6.00 ( http://nmap.org ) at 2013-10-24 21:13 PDT
+    Nmap scan report for 192.168.1.64
+    Host is up (0.36s latency).
+    Nmap scan report for claret.lan (192.168.1.75)
+    Host is up (0.00031s latency).
+    Nmap scan report for 192.168.1.87
+    Host is up (0.16s latency).
+    Nmap scan report for 192.168.1.253
+    Host is up (0.0029s latency).
+    Nmap scan report for dsldevice.lan (192.168.1.254)
+    Host is up (0.0021s latency).
+    Nmap done: 256 IP addresses (5 hosts up) scanned in 27.53 seconds
+
+  ,__________________________________________________________________,
+  |nota sobre iprange: para aquellos que no saben calcular rangos    |
+  |y usar la notación CIDR (como yo), hice un script para            |
+  |simplificar. Ver {IPRANGE} en la lista de referencias.            |
+  |__________________________________________________________________|
+
+
+iii) descubrir servicios web en un bloque público
+
+  $ curl ifconfig.me # obtenemos nuestra dirección pública
+  200.38.30.98
+  $ whois 200.38.30.98 | grep '^inetnum:' # whois nos permite hacer
+                                          # preguntas sobre bloques
+                                          # asignados también.
+  inetnum:     200.38.30/24
+  $ iprange 200.38.30/24 # rango de direcciones
+  200.38.30.0 - 200.38.30.255
+  $ echo $((2**(32 - 24) - 2)) # número de «hosts»
+  254
+  $ nmap -n -Pn -p80,8000,8080 200.38.30.0/24
+  [...]
+  Nmap scan report for 200.38.30.254
+  Host is up (0.075s latency).
+  PORT     STATE    SERVICE
+  80/tcp   open     http
+  8000/tcp filtered http-alt
+  8080/tcp filtered http-proxy
+  
+  Nmap scan report for 200.38.30.255
+  Host is up.
+  PORT     STATE    SERVICE
+  80/tcp   filtered http
+  8000/tcp filtered http-alt
+  8080/tcp filtered http-proxy
+  
+  Nmap done: 256 IP addresses (256 hosts up) scanned in 44.52 seconds
+  $ curl -s '200.38.30.249' | grep -i dvr
+      <TITLE>DVR WEB Client</TITLE>
+
+  $ nmap -oG barrido.grep -oN barrido.nmap -n -Pn -p80,8000,8080 200.38.30.0/24
+  [...]
+
+  ,____________________________________________________________________,
+  |ALERTA: La explicación puede ser severamente aburrida               |
+  |                                                                    |
+  |Es muy importante poder usar herramientas complementarias a nmap,   |
+  |como whois, dig, iprange (obviamente), para obtener la mayor        |
+  |información sobre el objetivo. En este caso, partimos de nuestra    |
+  |dirección pública (200.38.30.98), y con whois averiguamos el tamaño |
+  |del bloque, que resultó ser un /24 (254 máquinas). Posteriormente,  |
+  |utilizamos nmap para escanear 3 puertos en específico               |
+  |(-p80,8000,8080) para acelerar la búsqueda. También ayuda           |
+  |deshabilitar la resolución DNS inversa (-n) y deshabilitar el       |
+  |escaneo por ICMP (ping), que suele estar filtrado (-Pn).            |
+  |____________________________________________________________________|
+
+
+¿y quién lo escribió, Steve Jobs?
+
+Sí, nmap fue escrito por Steve Jobs cuando apenas era un practicante
+trabajando para Bell Labs en 1985. Fue escrito originalmente en
+ensamblador, pero después lo pasó a C.
+
+[...] espero que no hayan creído eso! No, el autor de nmap no es ese
+wey. El autor de nmap es el sensual Fyodor ver {FYODOR} (su nombre
+legal es Gordon Lyon). Una de las cosas que me gusta hacer es
+investigar quién hizo las herramientas, para entender cómo fue que
+aprendieron a hacer esas cosas mágicas! por eso daré crédito también
+al autor de hping3, Salvatore Sanfilippo, conocido en el bajo mundo
+como antirez. netcat fue escrito por Hobbit, cuyo nombre legal
+desconozco, pero su sitio web está en la lista de referencias como
+{HOBBIT}.
+
+[0x01:Descubrimiento de máquinas («host discovery»)]
+
+Vimos en [0x00.ii] un ejemplo de cómo descubrir máquinas en nuestra
+red de área local, y en [0x00.iii] cómo descubrir máquinas con
+ciertos servicios activos. El descubrimiento de máquinas es el primer
+paso del reconocimiento de nuestros objetivos.
+
+Hay varios métodos para descubrirlas, revisemos cada caso:
+
+i) ICMP: el protocolo ICMP se utiliza para controlar aspectos de IP.
+  Un uso que se le da es para detectar conectividad, con los comandos
+  Echo request y Echo reply.
+
+  Para mala suerte nuestra, el tráfico de paquetes de este protocolo
+  se ve severamente mutilado por cortafuegoss demasiado agresivos, y
+  sistemas operativos que deciden rechazarlos...
+
+  Por lo tanto, no es completamente confiable: si una máquina no te
+  responde al ping, no necesariamente está apagada.
+
+    $ nmap -sn 192.168.1.0/24 # Ya lo habíamos visto.
+
+  -sn está en la sección de HOST DISCOVERY del manual de nmap, con la
+  siguiente información: «-sn: Ping Scan - disable port scan». Es
+  decir, omite el escaneo de puertos, y solo se cerciora de que las
+  máquinas respondan al ping.
+
+ii) TCP SYN: el proceso de TCP se explica más delante, pero en pocas
+  palabras, TCP construye túneles utilizando un proceso de tres
+  pasos. Si el iniciador recibe una respuesta, seguramente hay
+  alguién del otro lado...
+
+    $ ping msn.com
+    PING msn.com (65.55.206.228) 56(84) bytes of data.
+    ^C
+    --- msn.com ping statistics ---
+    2 packets transmitted, 0 received, 100% packet loss, time 1007ms
+
+  Vaya, ICMP bloqueado...
+
+    $ nmap -sn -PS80,443 msn.com
+
+    Starting Nmap 6.00 ( http://nmap.org ) at 2013-10-24 22:23 PDT
+    Nmap scan report for msn.com (65.55.206.228)
+    Host is up (0.19s latency).
+    Nmap done: 1 IP address (1 host up) scanned in 0.47 seconds
+
+  Usando -PS podemos escanear con TCP SYN.
+
+iii) Otras banderas TCP: Algunas máquinas responden a paquetes
+  erróneos de TCP, cerrando la conexión. Es otra forma de detectar
+  que están activas.
+
+    $ hping3 -SA -p 80 -c 1 msn.com
+    HPING msn.com (eth0 65.55.206.228): SA set, 40 headers + 0 data bytes
+    len=46 ip=65.55.206.228 ttl=244 DF id=60431 sport=80 flags=R seq=0
+    win=8212 rtt=79.0 ms
+    
+    --- msn.com hping statistic ---
+    1 packets transmitted, 1 packets received, 0% packet loss
+    round-trip min/avg/max = 79.0/79.0/79.0 ms
+
+  Podemos ver como msn.com responde a un SYN-ACK con un RST.
+
+
+[0x02:Descubrimiento de puertos]
+
+Todo buen administrador de sistemas sabe que debe proteger sus
+servicios con un cortafuegos. nmap nos puede ayudar a descubrir
+huecos en el cortafuegos.
+
+Una línea tan simple (y tardada) como:
+
+  $ nmap -p0-65535 127.0.0.1
+  
+  Starting Nmap 6.00 ( http://nmap.org ) at 2013-10-24 22:49 PDT
+  Nmap scan report for localhost (127.0.0.1)
+  Host is up (0.00025s latency).
+  Not shown: 65526 closed ports
+  PORT      STATE SERVICE
+  22/tcp    open  ssh
+  25/tcp    open  smtp
+  80/tcp    open  http
+  111/tcp   open  rpcbind
+  631/tcp   open  ipp
+  5432/tcp  open  postgresql
+  8080/tcp  open  http-proxy
+  10003/tcp open  documentum_s
+  10004/tcp open  emcrmirccd
+  49862/tcp open  unknown
+  
+  Nmap done: 1 IP address (1 host up) scanned in 1.35 seconds
+
+[...] puede ayudarnos a listar los puertos que están abiertos (y
+adicionalmente los servicios, qué lindo es nmap).
+
+nmap clasifica el estado de los puertos en tres posibilidades: open,
+filtered, y closed. El estado open en el caso de TCP es cuando se
+responde a un SYN con un SYN-ACK. El estado closed es cuando se
+responde a un SYN, ACK, SYN-ACK, o cualquier otra combinación de
+banderas con un RST (o FIN, no estoy seguro).
+
+El caso del estado filtered es diferente. «filtered» se presenta cuando
+no hay respuesta al enviar un paquete TCP a un puerto, lo que puede
+significar varias cosas: 1) que el cortafuegos está ignorando los
+paquetes a tal puerto; 2) que la computadora está ignorando los
+paquetes a tal puerto; 3) que la computadora esté apagada; 4) que el
+cortafuegos esté apagado; n) cualquier otra posibilidad de que se pierda
+la respuesta a un paquete TCP (ruteo inapropiado, mala conexión,
+...).
+
+Por lo tanto, una respuesta «filtered» no nos ayuda mucho en la
+investigación. Veamos algunos ejemplos:
+
+
+i) Un puerto cerrado (el cortafuegos de mi máquina indica que el puerto
+  está cerrado, con un RST).
+
+    $ nmap -p 81 127.0.0.1
+ 
+    Starting Nmap 6.00 ( http://nmap.org ) at 2013-10-24 22:51 PDT
+    Nmap scan report for localhost (127.0.0.1)
+    Host is up (0.000050s latency).
+    PORT   STATE  SERVICE
+    81/tcp closed hosts2-ns
+
+    Nmap done: 1 IP address (1 host up) scanned in 0.04 seconds
+
+ii) El mismo puerto cerrado, utilizando la herramienta hping3, que
+  nos permite desglosar con mayor detalle la respuesta de la máquina:
+
+    $ hping3 -S -p 81 -c 1 127.0.0.1
+    HPING 127.0.0.1 (lo 127.0.0.1): S set, 40 headers + 0 data bytes
+    len=40 ip=127.0.0.1 ttl=64 DF id=0 sport=81 flags=RA seq=0 win=0
+    rtt=0.1 ms
+
+    --- 127.0.0.1 hping statistic ---
+    1 packets transmitted, 1 packets received, 0% packet loss
+    round-trip min/avg/max = 0.1/0.1/0.1 ms
+
+  ,_________________________________________________________________,
+  |nota: RA significa RST-ACK, por lo tanto, es indicativo de una   |
+  |máquina que está en línea, pero que rechaza paquetes a tal puerto|
+  |ya sea por una regla del cortafuegos o porque no hay aplicación  |
+  |usando el puerto.                                                |
+  |_________________________________________________________________|
+
+iii) Cerraremos el puerto en el cortafuegos, pero en este caso,
+  utilizaremos la acción DROP, para ignorar los paquetes y veremos la
+  respuesta con nmap y hping3.
+
+    # iptables -A INPUT -p tcp --dport 81 -j DROP
+
+    $ nmap -p 81 127.0.0.1
+
+    Starting Nmap 6.00 ( http://nmap.org ) at 2013-10-24 22:53 PDT
+    Nmap scan report for localhost (127.0.0.1)
+    Host is up (0.000053s latency).
+    PORT   STATE    SERVICE
+    81/tcp filtered hosts2-ns
+
+    Nmap done: 1 IP address (1 host up) scanned in 0.24 seconds
+     
+    $ hping3 -S -p 81 -c 1 127.0.0.1
+    HPING 127.0.0.1 (lo 127.0.0.1): S set, 40 headers + 0 data bytes
+
+    --- 127.0.0.1 hping statistic ---
+    1 packets transmitted, 0 packets received, 100% packet loss
+    round-trip min/avg/max = 0.0/0.0/0.0 ms
+
+  El resultado fue: sin respuesta, el puerto se marca como filtrado.
+  No se sabe si la máquina está encendida o no.
+
+iv) Borramos la regla del cortafuegos, y la redefinimos, pero en esta
+  ocasión utilizamos REJECT como acción, y la configuramos para que
+  envíe un RST como respuesta.
+
+    # iptables -D INPUT 1
+    # iptables -A INPUT -p tcp --dport 81 -j REJECT --reject-with tcp-reset
+    $ nmap -p 81 127.0.0.1
+
+    Starting Nmap 6.00 ( http://nmap.org ) at 2013-10-24 22:56 PDT
+    Nmap scan report for localhost (127.0.0.1)
+    Host is up (0.000050s latency).
+    PORT   STATE  SERVICE
+    81/tcp closed hosts2-ns
+
+    Nmap done: 1 IP address (1 host up) scanned in 0.04 seconds
+
+    $ hping3 -S -p 81 -c 1 127.0.0.1
+    HPING 127.0.0.1 (lo 127.0.0.1): S set, 40 headers + 0 data bytes
+    len=40 ip=127.0.0.1 ttl=64 DF id=0 sport=81 flags=RA seq=0 win=0
+    rtt=0.1 ms
+
+    --- 127.0.0.1 hping statistic ---
+    1 packets transmitted, 1 packets received, 0% packet loss
+    round-trip min/avg/max = 0.1/0.1/0.1 ms
+
+  hping3 es el vencedor en claridad: se puede observar que la
+  respuesta a los paquetes es nuevamente un RST-ACK.
+
+
+nmap tiene varios tipo de escaneos. Estos están documentados en SCAN
+TECHNIQUES, y algunos de los principales son:
+
+a) -sS TCP SYN: Utiliza paquetes TCP con la bandera SYN habilitada,
+  lo que corresponde al inicio de una negociación para obtener una
+  conexión TCP. No se registra en las bitácoras de los servicios,
+  pero, **sí en la de los cortafuegos e IDS**!
+
+b) -sT Connect(): Es la forma más básica de escaneo. No requiere de
+  privilegios, ya que lo único que hace es llamar al sistema con
+  connect(2), y cualquier proceso tiene acceso a esta función. Sin
+  embargo, esta función genera una conexión total, por lo que queda
+  registrado en las bitácoras, con la dirección que originó el
+  socket, y que la conexión fue errónea.
+
+c) -sA TCP ACK: Similar al caso «a», pero no inicia una conexión, por
+  lo que no se puede determinar si un puerto está abierto. Sirve
+  principalmente para distinguir entre cortafuegos con estado y
+  cortafuegos sin estado.
+
+d) -sU UDP: Sirve para encontrar servicios que operan con el
+  protocolo UDP. No hay forma fácil de conocer si un puerto UDP está
+  abierto así como lo es con TCP, por lo que este método solo
+  funciona para servicios que responden con códigos de error a cargas
+  inválidas.
+
+e, f, g) -sN TCP Null, -sF TCP FIN, -sX TCP Xmas: Similares a «c».
+  Sirven para identificar el sistema operativo, porque algunos, como
+  los de Microsoft, responden de manera muy particular a esos
+  escaneos.
+
+Para ejecutar la mayoría de estas búsquedas, nmap requiere ya sea
+permisos de super usuario (sudo), o, que se le asignen las
+capacidades para crear sockets «raw». Yo recomiendo que se utilice
+esta alternativa, para evitar tener que correr el comando como sudo:
+
+  $ sudo apt-get install libcap2-bin
+  $ sudo setcap cap_net_raw,cap_net_admin,cap_net_bind_service+eip /usr/bin/nmap
+
+Cuando se utiliza nmap con setcap, habra que especificarle al pobre
+que en efecto tiene privilegios administrativos, porque el solito no
+lo sabe:
+
+  $ nmap --privileged ...
+
+O si nos da flojera escribir eso, podemos:
+
+  $ export NMAP_PRIVILEGED=""
+  $ nmap ...
+
+O incluso poner esa definición en nuestro ~/.profile.
+
+
+[0x03:Descubrimiento de servicios]
+
+Es valioso conocer que un puerto está abierto o cerrado, sin embargo,
+es más valioso conocer qué servicios están conectados a los puertos
+abiertos. Existen varias formas de determinar esta información, y
+estas son:
+
+a) Suponer un tipo de servicio según el número de puerto. Existe una
+  convención/estándar sobre la asignación de puertos a servicios (la
+  puedes consultar en /etc/services). Sin embargo, nadie te mete a la
+  cárcel si no sigues la convención. Sí, como escuchaste, puedes
+  poner SSH en el puerto 80 y HTTP en el puerto 22 y no irás a
+  prisión.
+
+b) Algunas aplicaciones utilizan protocolos de comunicación
+  estandarizados, por lo que se puede intentar enviar secuencias
+  conocidas de cargas útiles, y leer las respuestas. Esto aplica para
+  los protocolos donde la comunicación es iniciada por el cliente.
+  Sin embargo, es un tanto riesgoso ya que se puede dañar a la
+  aplicación si se envían cargas malformadas. No funciona muy bien
+  para protocolos propietarios.
+
+c) Las aplicaciones más lindas son aquellas que se anuncian al
+  iniciar una conexión, presentando una información denominada
+  «banner». A la técnica de establecer conexiones y leer las
+  bienvenidas se le conoce como «banner grabbing».
+
+
+Un ejemplo muy sencillo del caso a es SSH:
+
+  $ nc -v localhost 22 <<< ''
+  localhost [127.0.0.1] 22 (ssh) open
+  SSH-2.0-OpenSSH_6.0p1 Debian-4
+  Protocol mismatch.
+
+Para esto, hemos introducido a la legendaria herramienta del
+hobbit: netcat. Este adorable animalito nos permite demasiadas
+cosas, una de ellas es establecer conexiones TCP, para recuperar
+los «banners».
+
+  $ nc -v localhost 25 <<< ''
+  localhost [127.0.0.1] 25 (smtp) open
+  554 SMTP synchronization error
+
+Ajá, SMTP. Sin embargo, no nos sirve de mucho, porque no sabemos
+qué MTA (Mail Transport Agent) está atendiéndonos. Para esto, nos
+iremos al caso «b», enviando una carga útil conocida en SMTP, así es,
+el «ola k ase».
+
+  $ nc -v localhost 25 < <(sleep 1; echo 'EHLO OLAKASE')
+  localhost [127.0.0.1] 25 (smtp) open
+  220 claret.dualbus.me ESMTP Exim 4.80 Fri, 25 Oct 2013 19:19:20 -0700
+  250-claret.dualbus.me Hello localhost [127.0.0.1]
+  250-SIZE 52428800
+  250-8BITMIME
+  250-PIPELINING
+  250 HELP
+  ^C
+
+Vaya, tengo exim4 en mi máquina local, qué pena, dispensen (en mi VPS
+uso qmail como debe ser).
+
+  $ nc -v localhost 80 <<< $'GET / HTTP/1.0\r\n\r\n' | sed $'/^[[:space:]\r]*$/q'
+  localhost [127.0.0.1] 80 (http) open
+  HTTP/1.1 200 OK
+  Server: nginx/1.2.1
+  Date: Sat, 26 Oct 2013 02:22:42 GMT
+  Content-Type: text/html
+  Content-Length: 262144
+  Last-Modified: Wed, 23 Oct 2013 02:44:14 GMT
+  Connection: close
+  Accept-Ranges: bytes
+  
+  too many output retries : Broken pipe
+
+Como podemos darnos cuenta, la técnica de «banner grabbing» resulta
+interesante, si los servicios se dejan con sus configuraciones por
+defecto, podemos averiguar versiones y en ocasiones hasta sistemas
+operativos y cosas adicionales. Sin embargo, no haremos esto
+manualmente para cada puerto... sería una locura. Aquí es donde entra
+nmap y sus herramientas de SERVICE/VERSION DETECTION.
+
+  $ nmap -p22,25,80 -sV localhost
+  
+  Starting Nmap 6.00 ( http://nmap.org ) at 2013-10-25 19:27 PDT
+  Nmap scan report for localhost (127.0.0.1)
+  Host is up (0.00019s latency).
+  Other addresses for localhost (not scanned): 127.0.0.1
+  PORT   STATE SERVICE VERSION
+  22/tcp open  ssh     OpenSSH 6.0p1 Debian 4 (protocol 2.0)
+  25/tcp open  smtp    Exim smtpd 4.80
+  80/tcp open  http    nginx 1.2.1
+  Service Info: Host: claret.dualbus.me; OS: Linux; CPE:
+  cpe:/o:linux:kernel
+  
+  Service detection performed. Please report any incorrect results at
+  http://nmap.org/submit/ .
+  Nmap done: 1 IP address (1 host up) scanned in 6.36 seconds
+
+Vaya, eso no costó mucho trabajo y nos ahorró el tener que hacerlo
+manualmente con netcat... incluso nos da información sobre el sistema
+operativo! Vaya, qué útil herramienta. -sV es service discovery.
+
+Si se fijan, tardó bastante en cargar... 6.36 segundos. Esto se debe
+a que carga una base de datos de «probes», las cuales intenta contra
+los puertos hasta que una acierta. Nosotros podemos escribir nuestras
+propias pruebas, y especificarlas con la opción --versiondb.
+
+Por ejemplo, supongamos que encontramos que una cámara en particular
+responde por HTTP a una carga, y queremos que en vez de que la
+clasifique como servidor web genérico, nos diga que es una cámara
+(porque sabemos que es vulnerable, o algo similar).
+
+Afortunadamente para mí, todavía guardo una que hice para encontrar
+módems vulnerables:
+
+Las líneas son para delimitar.
+-------------------------------------------------------------------------------
+#  vim: set tw=0:
+Probe TCP GetRequest q|GET / HTTP/1.0\r\n\r\n|
+ports 80
+match tg582n m|^HTTP/1\.1 302 Moved Temporarily\nDate:.+\nServer: \nContent-length: 0\nConnection: keep-alive\nKeep-Alive: timeout=60, max=2000\nLocation: http://.+/login\.lp\nSet-Cookie: xAuth_SESSION_ID=[^;]+; path=/; \nCache-control: no-cache="set-cookie"|
+match tg712 m|^HTTP/1\.1 302 Moved Temporarily\nDate:.+\nServer:  Mbedthis-Appweb/2\.4\.2\nContent-length: 0\nConnection: keep-alive\nKeep-Alive: timeout=60, max=2000\nLocation: http://.+/login\.lp\nSet-Cookie: xAuth_SESSION_ID=[^;]+; path=/; \nCache-control: no-cache="set-cookie"|
+match hg520b m|HTTP/1\.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm="[^"]+"\r\nContent-Type: text/html\r\nServer: RomPager/4\.07 UPnP/1\.0\r\n\r\n|
+match wam m|HTTP/1\.1 200 Ok\r\nDate: .+\r\nContent-Type: text/html\r\n\r\n.*Web Application Manager.*top=5000,left=5000,height=1,width=0|s
+match tg582nc m|HTTP/1.0 302 Moved Temporarily\r\nDate: .+\r\nServer: \r\nContent-length: 0\r\nConnection: close\r\nLocation: http://[^/]+/login.lp\r\nSet-Cookie: xAuth_SESSION_ID=[^;]+; path=/; \r\nCache-control: no-cache="set-cookie"\r\n\r\n|
+match ion-kenworth m|HTTP/1\.0 200 OK\r\nContent-Type: text/html\r\nDate: .+\r\nExpires: .+\r\nLast-Modified: .+\r\nServer: Allegro-Software-RomPager/3\.10\r\n\r\n.*:ion=.*Firmware Version</th><td[^>]*>([^<]+)|s v/$1/
+match hikvision-dvr m|HTTP/1\.0 302 Redirect\r\nServer: Hikvision-Webs\r\nDate: .+\r\nPragma: no-cache\r\nCache-Control: no-cache\r\nContent-Type: text/html\r\nLocation: http://[^/]+/index\.asp\r\n\r\n|
+match cisco-ios m|HTTP/1\.1 401 Unauthorized\r\nDate: .+\r\nServer: cisco-IOS\r\nAccept-Ranges: none\r\nWWW-Authenticate: Basic realm="[^"]+"\r\n\r\n401 Unauthorized\r\n|
+match huper-dvr m|HTTP/1\.0 200 OK\r\nContent-type: text/html\r\nDate: .+\r\nLast-Modified: .+\r\nCONTENT-LENGTH: \d+\r\nConnection: close\r\n\r\n.*DoCoMoCGI\.exe|s
+match pcam m|HTTP/1\.0 200 OK\r\nContent-type: text/html\r\nDate: .+\r\nConnection: close\r\nLast-Modified: .+\r\nContent-length: \d+\r\n\r\n.*(ver\d\S+)|s v/$1/
+match pcam m|HTTP/1\.1 501 Not Implemented\r\nAccept-Encoding:UTF-8\r\nContent-type:text/html\r\nContent-length:\d+\r\n\r\n|
+match awb-wimax-cpe m|HTTP/1\.0 200 OK\nContent-type: text/html\r\nDate: .+\r\nPragma: no-cache\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n.*commfunc\.js\?([^"]+).*MetaNormal|s v/$1/
+-------------------------------------------------------------------------------
+
+Si saben expresiones regulares, es un chiste hacer nuestros propios
+detectores! La documentación completa para elaborar el archivo está
+en la referencia {VSCAN}.
+
+
+[0x04: Scripting con NSE]
+
+nmap dejó de ser una simple herramienta para escanear puertos hace
+tiempo, y se convirtió en toda una plataforma para explorar redes,
+máquinas y servicios. Esto a raíz de la introducción del NSE (nmap
+scripting engine), que permite la extensión de nmap con programas en
+Lua. Ver {NSE}.
+
+<Revisar escaneos muestras: new-localhost.nmap y localhost.nmap>
+
+Para ejecutar scripts durante el escaneo, se utiliza la opción de
+-sC. Es útil cuando se combina con -sV.
+
+[:TBD:]
+
+
+[0x05: Entendiendo TCP]
+
+[:TBD:]
+
+
+[0x06: Entendiendo UDP]
+
+[:TBD:]
+
+
+[0x07: Opciones útiles]
+
+i)    -A: realiza un escaneo total del sistema. Para mejores resultados
+  ejecutar con privilegios.
+ii)   -O: realiza pruebas que permiten detectar la versión del sistema
+  operativo.
+iii)  -iL: lee la lista de blancos de un archivo, útil para realizar
+  un escaneo a varios bloques que no guardan una relación lógica
+  entre sí.
+iv)   -sn: Deshabilita el escaneo de puertos.
+v)    -sV: Habilita la detección de versiones usando la base de datos de
+  versiones.
+vi)   -Pn: Deshabilita la detección de máquinas con ping. Útil cuando
+  dichas máquinas o redes filtran el tráfico ICMP.
+vii)  -n: Deshabilita la resolución inversa DNS. Es útil cuando se
+  quiere obtener información detallada de un blanco, pero para
+  escaneos rápidos, puede entorpecer.
+viii) -F: Realiza un escaneo rápido de los puertos más comunes,
+  usualmente se utiliza para determinar si vale la pena seguir
+  escaneando.
+
+a) presionar d/D mientras se ejecuta el escaneo, para mayor
+  información de depuración.
+b) presionar v/V para información detallada del escaneo.
+
+
+[0xff: Referencias]
+
+{IPRANGE}: Solo descárguenlo, póngalo en algún punto en su PATH, y
+  aplíquenle un chmod +x iprange.
+  <https://raw.github.com/dualbus/tutorial_nmap/master/iprange>
+{HKM}: Vulnerabilidad en módem tg582n.
+  <http://www.hakim.ws/2013/01/puerta-trasera-en-technicolor-tg582n/>
+{VSCAN}: En inglés, escribiendo reglas para determinar versiones.
+  <http://nmap.org/book/vscan.html>
+{FYODOR}: Nuestro sensual héroe.
+  <http://insecure.org/fyodor/>
+{HOBBIT}: Misterioso autor del original netcat.
+  <http://techno-fandom.org/~hobbit/>
+{ANTIREZ}: Autor de hping3 y de redis!
+  <http://antirez.com/>
+{NMAP-NU}: Referencia de nmap en inglés
+  <http://www.networkuptime.com/nmap/index.shtml>
+{NMAP-BT}: Referencia de nmap en inglés
+  <http://nmap.org/bennieston-tutorial/>
+{NSE}: Referencia de NSE
+  <http://nmap.org/book/nse.html>

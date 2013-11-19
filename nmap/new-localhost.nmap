@@ -1,0 +1,74 @@
+# Nmap 6.41SVN scan initiated Sat Oct 26 07:48:58 2013 as: nmap --privileged -A -oN new-localhost.nmap localhost
+Nmap scan report for localhost (127.0.0.1)
+Host is up (0.000035s latency).
+Other addresses for localhost (not scanned): 127.0.0.1
+Not shown: 987 closed ports
+PORT      STATE SERVICE     VERSION
+21/tcp    open  ftp         ProFTPD 1.3.4a
+22/tcp    open  ssh         OpenSSH 6.0p1 Debian 4 (protocol 2.0)
+| ssh-hostkey: 1024 2c:a8:b6:54:90:11:d1:db:aa:16:95:bd:7a:cf:8b:3e (DSA)
+| 2048 15:78:f7:88:ba:d9:23:c5:dc:6e:69:cc:ab:7b:7b:61 (RSA)
+|_256 f9:ce:1e:ac:8a:b9:b6:ac:1e:83:0a:18:a4:23:14:55 (ECDSA)
+25/tcp    open  smtp        Exim smtpd 4.80
+| smtp-commands: claret.dualbus.me Hello localhost [127.0.0.1], SIZE 52428800, 8BITMIME, PIPELINING, HELP, 
+|_ Commands supported: AUTH HELO EHLO MAIL RCPT DATA NOOP QUIT RSET HELP 
+53/tcp    open  domain      dnsmasq 2.62
+| dns-nsid: 
+|_  bind.version: dnsmasq-2.62
+80/tcp    open  http        nginx 1.2.1
+|_http-methods: No Allow or Public header in OPTIONS response (status code 405)
+|_http-title: Site doesn't have a title (text/html).
+111/tcp   open  rpcbind     2-4 (RPC #100000)
+| rpcinfo: 
+|   program version   port/proto  service
+|   100000  2,3,4        111/tcp  rpcbind
+|   100000  2,3,4        111/udp  rpcbind
+|   100024  1          49862/tcp  status
+|_  100024  1          50091/udp  status
+139/tcp   open  netbios-ssn Samba smbd 3.X (workgroup: WORKGROUP)
+445/tcp   open  netbios-ssn Samba smbd 3.X (workgroup: WORKGROUP)
+631/tcp   open  ipp         CUPS 1.5
+| http-methods: Potentially risky methods: PUT
+|_See http://nmap.org/nsedoc/scripts/http-methods.html
+| http-robots.txt: 1 disallowed entry 
+|_/
+|_http-title: Home - CUPS 1.5.3
+5432/tcp  open  postgresql  PostgreSQL DB 9.1.5 - 9.1.9
+8080/tcp  open  socks5      (No authentication; connection failed)
+| socks-auth-info: 
+|_  No authentication
+| socks-open-proxy: 
+|   status: open
+|   versions: 
+|     socks4
+|_    socks5
+10003/tcp open  ssh         OpenSSH 6.0p1 Debian 4 (protocol 2.0)
+| ssh-hostkey: 1024 17:b7:54:9e:c8:52:53:bc:8d:21:d7:62:27:ca:10:6e (DSA)
+| 2048 35:af:7f:13:37:25:34:b7:9a:1a:98:0d:f2:69:52:27 (RSA)
+|_256 e0:e9:7f:45:c7:b1:ea:85:e3:08:4b:dd:0d:8c:3c:97 (ECDSA)
+10004/tcp open  emcrmirccd?
+Device type: general purpose
+Running: Linux 2.6.X|3.X
+OS CPE: cpe:/o:linux:linux_kernel:2.6 cpe:/o:linux:linux_kernel:3
+OS details: Linux 2.6.32 - 3.6
+Network Distance: 0 hops
+Service Info: Host: claret.dualbus.me; OSs: Unix, Linux; CPE: cpe:/o:linux:linux_kernel
+
+Host script results:
+|_nbstat: NetBIOS name: CLARET, NetBIOS user: <unknown>, NetBIOS MAC: <unknown> (unknown)
+| smb-os-discovery: 
+|   OS: Unix (Samba 3.6.6)
+|   Computer name: claret
+|   NetBIOS computer name: 
+|   Domain name: dualbus.me
+|   FQDN: claret.dualbus.me
+|_  System time: 2013-10-26T07:51:11-07:00
+| smb-security-mode: 
+|   Account that was used for smb scripts: guest
+|   User-level authentication
+|   SMB Security: Challenge/response passwords supported
+|_  Message signing disabled (dangerous, but default)
+|_smbv2-enabled: Server doesn't support SMBv2 protocol
+
+OS and Service detection performed. Please report any incorrect results at http://nmap.org/submit/ .
+# Nmap done at Sat Oct 26 07:51:41 2013 -- 1 IP address (1 host up) scanned in 164.05 seconds

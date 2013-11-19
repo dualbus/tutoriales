@@ -1,0 +1,42 @@
+GDB
+===
+
+Ejemplos mal programados en C, para el mini-pseudo-tutorial de GDB.
+
+-------------------------------------------------------------------------------
+
+Para compilar los ejemplos, ejecutar:
+
+::
+  ./build
+
+En el directorio que contiene el código fuente.
+
+Para borrar el código generado:
+
+  ./clean
+
+-------------------------------------------------------------------------------
+bt.c: ejemplo base para obtener un backtrace. Cargar con:
+      ``gdb bt.x``
+build: compilar los programas con las banderas apropiadas.
+clean: borrar ejecutables generados
+gdb.txt: contenido de la "presentación".
+nnts-hex.c: non-null terminated string. Se sobre-escribe el caracter
+            '\0' del final de la primera cadena. Esto impide que C
+            distinga entre ambas cadenas. La idea de este programa es
+            utilizar los comandos `print` y `x` para encontrar la
+            falla.
+oob-step.c: out-of-bounds. Consulta un elemento fuera del arreglo. La
+            idea es poder usar las funciones de stepping, y colocar
+            un breakpoint dentro del ciclo. Podría servir incluso
+            para ilustrar watch y la capacidad de scripting de GDB.
+raff.c:   return array from function. Regresa una referencia a
+          una variable local. Al salir de la función, la referencia
+          ya no es válida (puede apuntar a cualquier otra cosa). La
+          idea es evaluar los valores de regreso de la función, por
+          ejemplo, con `print`.
+README: self
+segfault.c: simple falla de segmentación. Permite ilustrar la forma
+            para consultar los valores de los punteros y otras
+            variables.

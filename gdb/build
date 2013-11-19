@@ -1,0 +1,2 @@
+#!/bin/bash
+for f in *.c; do gcc -ggdb -o "${f%.*}.x" "$f"; done 2>/dev/null

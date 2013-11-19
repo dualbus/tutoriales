@@ -1,0 +1,97 @@
+# GDB #
+
+## Preguntas ##
+
+¿Qué es GDB?
+
+-> Es un depurador de código. Permite trabajar con C, C++ y otros
+   lenguajes más. Su interfaz es en modo texto.
+
+¿Qué debo agregar a mi programa para poder analizarlo con GDB?
+
+-> GDB puede trabajar con un binario normal. Si el programa lo puedes
+   ejecutar en tu sistema operativo, entonces también lo puedes
+   depurar con GDB. Sin embargo, ayuda mucho compilar tu programa con
+   símbolos. Éstos permiten hacer una inspección más profunda del
+   programa que estás depurando.
+
+¿Qué son los símbolos?
+
+-> Nombres de variables, funciones y otros datos que se guardan en tu
+   programa para poder relacionar las instrucciones con el código
+   fuente.
+
+¿Cómo me muevo en un programa?
+
+-> Estas son solo algunas de las formas posibles:
+
+    - n -- Step program
+    - next -- Step program
+    - nexti -- Step one instruction
+    - ni -- Step one instruction
+    - reverse-next -- Step program backward
+    - reverse-nexti -- Step backward one instruction
+    - reverse-step -- Step program backward until it reaches the
+    - beginning of another source line
+    - reverse-stepi -- Step backward exactly one instruction
+    - rn -- Step program backward
+    - rni -- Step backward one instruction
+    - rs -- Step program backward until it reaches the beginning of
+    - another source line
+    - rsi -- Step backward exactly one instruction
+    - si -- Step one instruction exactly
+    - skip -- Ignore a function while stepping
+    - skip file -- Ignore a file while stepping
+    - skip function -- Ignore a function while stepping
+    - step -- Step program until it reaches a different source line
+    - stepi -- Step one instruction exactly
+
+¿Qué es un breakpoint?
+
+-> "Punto de quiebre/ruptura". Permite detener la ejecución del
+   programa en un punto determinado. Los breakpoints pueden colocarse
+   antes de iniciar una llamada a una función, 
+
+-------------------------------------------------------------------------------
+
+¿Qué es un backtrace/stacktrace?
+
+-> Es una lista de llamadas a funciones. Se ordena de llamado a
+   llamador, en dirección descendente. Es decir, si la funcion `f1`
+   llama a la función `f2`, y la función `f3` llama a la función
+   `f4`, el backtrace se vería un tanto así:
+
+   1. f4
+   2. f3
+   3. f2
+   4. f1
+   
+   Indicando el siguiente flujo: f1 -> f2 -> f3 -> f4, donde ->
+   indica una llamada.
+
+¿Cómo genero un backtrace?
+
+-> Un backtrace simple se genera con: bt. Para obtener backtraces más
+   informativos, utilizar esta referencia:
+
+   <http://wiki.debian.org/HowToGetABacktrace>
+
+-------------------------------------------------------------------------------
+
+## Tutoriales ##
+
+* <http://www.unknownroad.com/rtfm/gdbtut/gdbtoc.html>. Es el
+  tutorial de Stallman. Contiene algunos tips muy interesantes. Sin
+  embargo, a mi parecer, exige cierta familiaridad ya con lo que es
+  un depurador (no necesariamente GDB). Para aquellos que ya tienen
+  el respaldo de conocimiento, es el mejor tutorial.
+
+* <http://www.dirac.org/linux/gdb/>. Te lleva de la mano desde cero
+  hasta poder usar GDB de forma intermedia. Me gusta el hecho de que
+  explica la razón de preferir un depurador sobre los puntos de
+  prueba con printf's.
+
+* <http://www.cs.cmu.edu/~gilpin/tutorial/>. Tutorial breve. Puede
+  servir como repaso para los otros tutoriales.
+
+-------------------------------------------------------------------------------
